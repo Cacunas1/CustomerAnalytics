@@ -21,7 +21,7 @@ library(wordcloud)
 library(zoo)
 #library(kknn)
 
-#Importing the dataset
+# Importing the dataset --------------------------------------------------
 
 orange_train <- read_tsv("./data/orange_small_train.data")
 orange_test  <- read_tsv("./data/orange_small_test.data")
@@ -29,51 +29,68 @@ objective    <- read_csv("./data/KDD_CUP_2009_OBJECTIVE_COLUMNS_LABELS.csv")
 
 # asdf --------------------------------------------------------------------
 
+nums  <- lapply(orange_train, is.numeric) %>% unlist()
+orange_train_nums <- orange_train[, nums]
+orange_train_cats <- orange_train[, -nums]
+orange_test_nums <- orange_test[, nums]
+orange_test_cats <- orange_test[, -nums]
+
 # Encoding the target feature as factor (In this case, Churn)
 objective$Churn[objective$Churn == -1] <- 0
 Churn <- factor(objective$Churn, levels = c(0, 1))
 
 #=========================================================================#
-# JC: Logistic, Naive Bayes, Decision Tree, Random Forest.
-# Cristian: K-NN, SVM, Kernel SVM
+# JC: Random Forest.
+# Cristian: SVM
 #=========================================================================#
+
+# ETL ---------------------------------------------------------------------
+
 
 #It is required to omit the columns which have 0 variance
 NoVar <- function(dat) {
-  out <- lapply(dat, function(x) length(unique(x)))
-  want <- which(!out > 1)
-  unlist(want)
+  dist <- lapply(dat, function(x) length(unique(x)))
+  want <- unlist(dist) > 1
+  return(want)
 }
 
-train_svm <- subset(orange_train, select = -NoVar(orange_train))
+train_svm <- subset(orange_train_nums, select = NoVar(orange_train_nums))
 
-dataset_svm <- cbind(train_svm[1:160], Churn)
+dataset_svm <- cbind(train_svm, Churn)
 
-#Replacing missing values with the respective mean of each colum
-df <- dataset_svm
-df[] <- lapply(df, na.aggregate)
+for(i in 1:ncol(dataset_svm)){
+  dataset_svm[is.na(dataset_svm[,i]), i] <- mean(dataset_svm[,i], na.rm = TRUE)
+}
 
 # Splitting the dataset into the Training set and Test set
 set.seed(321)
-split_svm = sample.split(df$Churn, SplitRatio = 0.75)
-training_set_svm = subset(df, split_svm == TRUE)
-test_set_svm = subset(df, split == FALSE)
+split_svm         <- sample.split(dataset_svm$Churn, SplitRatio = 0.75)
+training_set_svm  <- subset(dataset_svm, split_svm == TRUE)
+test_set_svm      <- subset(dataset_svm, split_svm == FALSE)
+
+# SVM training ------------------------------------------------------------
 
 tic("svmLinear training:")
 
 classifier_svm <- train(
-	x = dataset_svm[, 1:160],
-	y = dataset_svm$Churn,
- 	method = svmLinear,
-	metric = ifelse(is.factor(y), "Accuracy", "RMSE"),   
-    maximize = ifelse(metric == "RMSE", FALSE, TRUE),)
+  x = dataset_svm[, 1:ncol(dataset_svm) - 1],
+  y = dataset_svm$Churn,
+  method = "svmLinear"#,
+  #metric = ifelse(is.factor(dataset_svm$Churn), "Accuracy", "RMSE"),
+  #maximize = ifelse(metric == "RMSE", FALSE, TRUE)
+)
 
 toc()
 
-# Predicting the Test set results
-prob_pred_svm = predict(classifier_svm, type = 'response', newdata = test_set_svm[-161])
-y_pred_svm = ifelse(prob_pred_svm > 0.5, 1, 0)
+# Predicting the Test set results ----------------------------------------
 
+prob_pred_svm <- predict(
+  classifier_svm,
+  type = 'response',
+  newdata = test_set_svm[-161]
+)
+
+y_pred_svm <- ifelse(prob_pred_svm > 0.5, 1, 0)
 
 # Making the Confusion Matrix
 cm_svm = table(test_set[, 161], y_pred_svm > 0.5)
@@ -82,7 +99,7 @@ cm_svm = table(test_set[, 161], y_pred_svm > 0.5)
 # True Positives: 1/918 (0.11%)
 
 
-# Performing the splitting to the rough dataset-------------------------------------------------------------
+# Performing the splitting to the rough dataset ----------------------------
 
 # Splitting the dataset into the Training set and Test set
 train <- cbind(orange_train, Churn)
