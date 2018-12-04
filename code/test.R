@@ -73,14 +73,14 @@ for (i in 1:ncol(orange_train_nums)) {
 }
 
 # replace numerical nulls for column mean, and categorical nulls by column mode
-# for(i in 1:ncol(orange_train)){
-#   if (nums[i]) {
-#     #orange_train[is.na(orange_train[,i]), i] <- mean(orange_train[,i], na.rm = TRUE)
-#     #replace_na(orange_train[i], mean(orange_train[i], na.rm = TRUE))
-#   } else {
-#     orange_train[is.na(orange_train[,i]), i] <- 0
-#   }
-# }
+for(i in 1:ncol(orange_train)){
+  if (nums[i]) {
+    #orange_train[is.na(orange_train[,i]), i] <- mean(orange_train[,i], na.rm = TRUE)
+    replace_na(orange_train[i], mean(orange_train[i], na.rm = TRUE))
+  } else {
+    orange_train[is.na(orange_train[,i]), i] <- 0
+  }
+}
 
 # Encoding the target feature as factor (In this case, Churn)
 objective$Churn[objective$Churn == -1] <- 0
@@ -106,7 +106,7 @@ test_set_svm      <- subset(dataset_svm, split_svm == FALSE)
 
 # SVM training ------------------------------------------------------------
 
-dataset_svm %<>% replace(., is.na(.), 0)
+#dataset_svm %<>% replace(., is.na(.), 0)
 
 tic("svmLinear training:")
 
