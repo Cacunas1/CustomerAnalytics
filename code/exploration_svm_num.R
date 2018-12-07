@@ -4,9 +4,10 @@ rm(list = ls())
 
 library(caret)
 library(dplyr)
-library(tidyr)
-library(readr)
 library(magrittr)
+library(readr)
+library(tictoc)
+library(tidyr)
 
 # Importing the dataset --------------------------------------------------
 
@@ -37,18 +38,17 @@ test_pred_num  <- orange_test[nums]
 test_pred_cat  <- orange_test[cats]
 
 # replace numerical predictor na's by the mean
-train_pred_num %<>% mutate_all(funs(ifelse(is.na(.),mean(.,na.rm=T),.)))
+train_pred_num %<>% mutate_all(funs(ifelse(is.na(.), mean(.,na.rm = T), .)))
 
-# randomForest training ------------------------------------------------------------
+# randomForest training ---------------------------------------------------
 
-tic("randomForest training:")
+tic("svmLinear training:")
 
 classifier_rf <- train(
   x = train_pred_num,
   y = objective$Churn,
-  method = "rf",
-  ntree = 100,
-  do.trace = 5
+  method = "svmLinear",
+  verbose = T
   #metric = ifelse(is.factor(dataset_svm$Churn), "Accuracy", "RMSE"),
   #maximize = ifelse(metric == "RMSE", FALSE, TRUE)
 )
