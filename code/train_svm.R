@@ -22,22 +22,24 @@ nums <- lapply(trainingset[1:ncol(trainingset) - 1], is.numeric) %>% unlist()
 cats <- lapply(trainingset[1:ncol(trainingset) - 1], is.character) %>% unlist()
 
 # Separate numerical predictors from categorical ones
-train_pred_num <- trainingset[nums]
-train_pred_cat <- trainingset[cats]
-test_pred_num  <- trainingset[nums]
-test_pred_cat  <- trainingset[cats]
+train_pred_num <- trainingset[c(nums, F)]
+train_pred_cat <- trainingset[c(cats, F)]
+test_pred_num  <- trainingset[c(nums, F)]
+test_pred_cat  <- trainingset[c(cats, F)]
 
 # replace numerical predictor na's by the mean
 train_pred_num %<>% mutate_all(funs(ifelse(is.na(.), mean(.,na.rm = T), .)))
 
-# SVM Linear training ---------------------------------------------------
+trainingset$churn %<>% as.factor()
 
-cl <- makePSOCKcluster(4)
-registerDoParallel(cl)
+# SVM Linear training ---------------------------------------------------
 
 sink("./output/svmlinear_5000.out")
 
 tic("svmLinear training:")
+
+cl <- makePSOCKcluster(4)
+registerDoParallel(cl)
 
 classifier_svm <- train(
   x = train_pred_num,
@@ -49,12 +51,11 @@ classifier_svm <- train(
   #maximize = ifelse(metric == "RMSE", FALSE, TRUE)
 )
 
+stopCluster(cl)
+
 toc()
 
-out_svm <- predict(classifier_svm, remainder[-churn])
+out_svm <- predict(classifier_svm, remainder[1:ncol(remainder) - 1])
 cm_svm <- confusionMatrix(out_svm, remainder$churn)
 print(cm_svm)
-
 sink()
-
-stopCluster(cl)
