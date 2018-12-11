@@ -23,8 +23,11 @@ objective    <- read_csv("./data/KDD_CUP_2009_OBJECTIVE_COLUMNS_LABELS.csv")
 
 # Character to number -----------------------------------------------------
 
-plus  <- objective$Churn == 1
-minus <- objective$Churn == -1
+objective$Churn[objective$Churn  == -1] <- 0
+churn <- factor(objective$Churn, levels = c(0, 1))
+
+plus  <- churn == 1
+minus <- churn == 0
 
 class_plus  <- sum(plus)
 class_minus <- sum(minus)
@@ -33,19 +36,22 @@ class_minus <- sum(minus)
 orange_train %<>% select_if(not_all_na)
 orange_test  %<>% select_if(not_all_na)
 
-orange_train %<>% cbind(objective$Churn)
+orange_train %<>% cbind(churn)
 
 orange_train_plus  <- orange_train[plus, ]
 orange_train_minus <- orange_train[minus, ]
 
-number_to_sample <- 10000 - class_plus
+number_to_sample <- 2500
 
 set.seed(69)
+
+orange_train_plus_selected <-
+  orange_train_plus[sample(nrow(orange_train_plus), number_to_sample), ]
 
 orange_train_minus_selected <-
   orange_train_minus[sample(nrow(orange_train_minus), number_to_sample), ]
 
-trainingset <- rbind(orange_train_plus, orange_train_minus_selected)
+trainingset <- rbind(orange_train_plus_selected, orange_train_minus_selected)
 
 # training ----------------------------------------------------------------
 
@@ -61,15 +67,14 @@ test_pred_cat  <- trainingset[cats]
 
 # replace numerical predictor na's by the mean
 train_pred_num %<>% mutate_all(funs(ifelse(is.na(.), mean(.,na.rm = T), .)))
-trainingset$Churn %<>% factor(levels = c(-1, 1))
 
 # predictor training ---------------------------------------------------
 
 tic("svmLinear training:")
 
-classifier_rf <- train(
+classifier_svm <- train(
   x = train_pred_num,
-  y = trainingset$Churn,
+  y = trainingset$churn,
   method = "svmLinear",
   verbose = T
   #metric = ifelse(is.factor(dataset_svm$Churn), "Accuracy", "RMSE"),
