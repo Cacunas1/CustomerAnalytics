@@ -13,7 +13,7 @@ library(tidyr)
 # Importing the dataset --------------------------------------------------
 
 trainingset <- read_csv("./output/trainingset.csv")
-#remainder <- read_csv("./output/remainder.csv")
+remainder <- read_csv("./output/remainder.csv")
 
 # training ----------------------------------------------------------------
 
@@ -41,14 +41,19 @@ tic("svmLinear training:")
 
 classifier_svm <- train(
   x = train_pred_num,
-  y = objective$Churn,
+  y = trainingset$churn,
   method = "svmLinear",
-  verbose = T
+  verbose = T,
+  allowParallel = T
   #metric = ifelse(is.factor(dataset_svm$Churn), "Accuracy", "RMSE"),
   #maximize = ifelse(metric == "RMSE", FALSE, TRUE)
 )
 
 toc()
+
+out_svm <- predict(classifier_svm, remainder[-churn])
+cm_svm <- confusionMatrix(out_svm, remainder$churn)
+print(cm_svm)
 
 sink()
 
