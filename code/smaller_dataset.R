@@ -5,8 +5,6 @@ rm(list = ls())
 library(dplyr)
 library(magrittr)
 library(readr)
-#library(tictoc)
-#library(tidyr)
 
 # Functions --------------------------------------------------------------
 
@@ -62,5 +60,26 @@ trainingset <- rbind(orange_train_plus_selected, orange_train_minus_selected)
 remainder <- orange_train[-plus_rows, ]
 remainder <- remainder[-minus_rows, ]
 
-write.csv(trainingset, "./output/trainingset.csv")
-write.csv(remainder, "./output/remainder.csv")
+# Numerical predictors only -----------------------------------------------
+
+# Save indexes of categorical/numerical variables
+nums <- lapply(trainingset[1:ncol(trainingset) - 1], is.numeric) %>% unlist()
+cats <- lapply(trainingset[1:ncol(trainingset) - 1], is.character) %>% unlist()
+
+# Separate numerical predictors from categorical ones
+train_pred_num <- trainingset[c(nums, T)]
+train_pred_cat <- trainingset[c(cats, F)]
+test_pred_num  <- trainingset[c(nums, T)]
+test_pred_cat  <- trainingset[c(cats, F)]
+remainder_num  <- remainder[c(nums, T)]
+remainder_cat  <- remainder[c(cats, F)]
+
+# replace numerical predictor na's by the mean
+train_pred_num %<>% mutate_all(funs(ifelse(is.na(.), mean(.,na.rm = T), .)))
+remainder_num  %<>% mutate_all(funs(ifelse(is.na(.), mean(.,na.rm = T), .)))
+
+train_pred_num %<>% as_tibble()
+remainder_num %<>% as_tibble()
+
+write_csv(train_pred_num, "./output/train_pred_num.csv")
+write_csv(remainder_num, "./output/train_pred_num.csv")

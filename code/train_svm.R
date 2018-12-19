@@ -12,27 +12,32 @@ library(tidyr)
 
 # Importing the dataset --------------------------------------------------
 
-trainingset <- read_csv("./output/trainingset.csv")
-remainder <- read_csv("./output/remainder.csv")
+train_pred_num <- read_csv("./output/train_pred_num.csv")
+remainder_num <- read_csv("./output/remainder_num.csv")
 
-# training ----------------------------------------------------------------
+#train_pred_num$churn %<>% as.factor()
+#remainder_num$churn %<>% as.factor()
+train_churn <- train_pred_num$churn
+remainder_churn <- remainder_num$churn
 
-# Save indexes of categorical/numerical variables
-nums <- lapply(trainingset[1:ncol(trainingset) - 1], is.numeric) %>% unlist()
-cats <- lapply(trainingset[1:ncol(trainingset) - 1], is.character) %>% unlist()
-
-# Separate numerical predictors from categorical ones
-train_pred_num <- trainingset[c(nums, F)]
-train_pred_cat <- trainingset[c(cats, F)]
-test_pred_num  <- trainingset[c(nums, F)]
-test_pred_cat  <- trainingset[c(cats, F)]
-
-# replace numerical predictor na's by the mean
-train_pred_num %<>% mutate_all(funs(ifelse(is.na(.), mean(.,na.rm = T), .)))
-
-trainingset$churn %<>% as.factor()
+train_churn[train_churn == 2] <- "retained"
+train_churn[train_churn == 1] <- "churned"
 
 # SVM Linear training ---------------------------------------------------
+
+set.seed(69)
+
+fit_control <- trainControl(
+  method = "cv",
+  number = 10,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary,
+  allowParallel = TRUE,
+  savePredictions = TRUE
+)
+
+nlevels(train_pred_num$churn)
+class(train_pred_num)
 
 sink("./output/svmlinear_5000.out")
 
@@ -42,11 +47,12 @@ cl <- makePSOCKcluster(4)
 registerDoParallel(cl)
 
 classifier_svm <- train(
-  x = train_pred_num,
-  y = trainingset$churn,
+  x = train_pred_num[1:174],
+  y = train_pred_num$churn,
   method = "svmLinear",
-  verbose = T,
-  allowParallel = T
+  trControl = fit_control,
+  verbose = T
+  #trControl = trainControl(method = "repeatedcv", repeats = 5)
   #metric = ifelse(is.factor(dataset_svm$Churn), "Accuracy", "RMSE"),
   #maximize = ifelse(metric == "RMSE", FALSE, TRUE)
 )
@@ -55,7 +61,9 @@ stopCluster(cl)
 
 toc()
 
-out_svm <- predict(classifier_svm, remainder[1:ncol(remainder) - 1])
-cm_svm <- confusionMatrix(out_svm, remainder$churn)
+out_svm <- predict(classifier_svm, remainder_num[-churn])
+cm_svm  <- confusionMatrix(out_svm, remainder$churn)
+
 print(cm_svm)
+
 sink()
